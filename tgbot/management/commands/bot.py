@@ -115,15 +115,15 @@ def edit_profile(telegram_id):
     else:
         str_vision = 'скрыт'
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text='⚙️ Имя ⚙️', callback_data='EditName')],
-                         [InlineKeyboardButton(text='⚙️ О себе ⚙️', callback_data='EditAbout')],
-                         [InlineKeyboardButton(text='⚙️ Основную игру ⚙️', callback_data='EditGame')],
-                         [InlineKeyboardButton(text='⚙️ Никнейм Steam ⚙️', callback_data='EditSteam')],
+        inline_keyboard=[[InlineKeyboardButton(text='👨 Имя 👨‍️', callback_data='EditName')],
+                         [InlineKeyboardButton(text='📝️ О себе 📝️', callback_data='EditAbout')],
+                         [InlineKeyboardButton(text='🕹 Основную игру 🕹', callback_data='EditGame')],
+                         [InlineKeyboardButton(text='🎮 Никнейм Steam 🎮️', callback_data='EditSteam')],
                          [InlineKeyboardButton(text='⚙️ Переключить видимость ⚙️', callback_data='EditVision')],
                          [InlineKeyboardButton(text='🏢 Вернуться в меню 🏢', callback_data='BackMenu')]])
     bot.sendMessage(chat_id=telegram_id, text=f'Что бы вы хотели изменить?\n'
                                               f'Ваш профиль {str_vision}\n'
-                                              f'Имя: {user.name}\n'
+                                              f'Имя: {user.name}\n\n'
                                               f'О себе:\n'
                                               f'{user.about}\n'
                                               f'Игра: {user.game}\n'
