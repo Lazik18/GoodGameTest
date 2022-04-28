@@ -11,6 +11,7 @@ class Profile(models.Model):
     register_date = models.DateField(verbose_name='Дата регистрации', auto_now_add=True)
     is_register = models.BooleanField(verbose_name='Прошел регистрацию', default=False)
     flag = models.CharField(max_length=100, null=True)
+    vision = models.BooleanField(verbose_name='Видимость профиля', default=False)
 
     def __str__(self):
         return f'#{self.telegram_id} {self.name}'

@@ -26,7 +26,8 @@ def command_messages(update: Update, context: CallbackContext):
         bot.sendMessage(chat_id=user.telegram_id, text=' Меню Тиндер', reply_markup=keyboard)
     else:
         if update.message.from_user.username is None:
-            bot.sendMessage(chat_id=user.telegram_id, text='Пожалуйста, укажите username в вашем профиле')
+            bot.sendMessage(chat_id=user.telegram_id, text='Пожалуйста, укажите username в вашем профиле телеграм '
+                                                           'и попробуйте снова /start')
             return
         user.username = update.message.from_user.username
         user.save()
@@ -96,6 +97,7 @@ def create_profile(telegram_id, game=Game.objects.first()):
                               InlineKeyboardButton(text='В меню', callback_data='BackMenu')]])
         bot.sendMessage(chat_id=telegram_id, text='Вы успешно зарегистрированы', reply_markup=keyboard)
         user.is_register = True
+        user.vision = True
         user.save()
 
 
@@ -103,14 +105,20 @@ def edit_profile(telegram_id):
     telegram_token = settings.TOKEN
     bot = telepot.Bot(telegram_token)
     user = Profile.objects.get(telegram_id=telegram_id)
+    if user.vision:
+        str_vision = 'виден'
+    else:
+        str_vision = 'скрыт'
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text='Имя', callback_data='EditName')],
                          [InlineKeyboardButton(text='О себе', callback_data='EditAbout')],
                          [InlineKeyboardButton(text='Основную игру', callback_data='EditGame')],
                          [InlineKeyboardButton(text='Никнейм Steam', callback_data='EditSteam')],
+                         [InlineKeyboardButton(text='Переключить видимость', callback_data='EditVision')],
                          [InlineKeyboardButton(text='Вернуться в меню', callback_data='BackMenu')]])
     bot.sendMessage(chat_id=telegram_id, text=f'Что бы вы хотели изменить?\n'
+                                              f'Ваш профиль {str_vision}\n'
                                               f'Имя: {user.name}\n'
                                               f'О себе:\n'
                                               f'{user.about}\n'
@@ -160,9 +168,12 @@ def send_profile(telegram_id, for_user):
     user = Profile.objects.get(telegram_id=telegram_id)
 
     bot.sendMessage(chat_id=for_user, text=f'Пользователю @{user.username} понравилась ваша карточка по игре.\n'
+                                           f'Вот его анкета:\n'
+                                           f'Имя: {user.name}\n'
+                                           f'Основная игра: {user.game}\n'
+                                           f'О себе:\n {user.about}\n'
+                                           f'Steam: {user.steam}\n'
                                            f'Напишите ему!')
-
-
 
 
 def case_messages(update: Update, context: CallbackContext):
@@ -187,16 +198,13 @@ def case_messages(update: Update, context: CallbackContext):
         finally:
             game = Game.objects.get(pk=int(user.flag))
             data = query.data.split()
-            next_user = Profile.objects.filter(game__id=game.id, pk__gt=int(data[1])).exclude(pk=user.pk).first()
+            next_user = Profile.objects.filter(game__id=game.id, pk__gt=int(data[1])) \
+                .exclude(pk=user.pk).filter(vision=True).first()
             if next_user is None:
-                next_user = Profile.objects.filter(game__id=game.id, pk__gt=int(data[1])).exclude(pk=user.pk).first()
+                next_user = Profile.objects.filter(game__id=game.id, pk__gt=int(data[1])) \
+                    .exclude(pk=user.pk).filter(vision=True).first()
             search(query.message.chat_id, next_user=next_user)
     elif 'SearchSend' in query.data:
-        # try:
-        #     bot.editMessageText(text='Успешно', msg_identifier=current_message)
-        # except telepot.exception.TelegramError:
-        #     pass
-        # finally:
         data = query.data.split()
         send_profile(query.message.chat_id, int(data[1]))
         bot.sendMessage(chat_id=query.message.chat_id, text='Ваш запрос отправлен')
@@ -208,6 +216,15 @@ def case_messages(update: Update, context: CallbackContext):
             pass
         finally:
             edit_profile(user.telegram_id)
+    elif 'EditVision' == query.data:
+        try:
+            bot.deleteMessage(current_message)
+        except telepot.exception.TelegramError:
+            pass
+        finally:
+            user.vision = not user.vision
+            user.save()
+            create_profile(user.telegram_id)
     elif 'EditName' == query.data:
         try:
             bot.deleteMessage(current_message)

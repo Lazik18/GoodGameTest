@@ -126,4 +126,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Telegram
 
-TOKEN = ''
+TOKEN = '5390790415:AAFbH9VkvOt5_s-bQp5u9QhX53wTxx12OXo'
