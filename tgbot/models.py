@@ -3,6 +3,7 @@ from django.db import models
 
 class Profile(models.Model):
     name = models.CharField(max_length=150, verbose_name='Имя', null=True)
+    username = models.CharField(max_length=250, verbose_name='Телеграм username', null=True)
     telegram_id = models.PositiveIntegerField(verbose_name='Телеграм ID пользователя', unique=True)
     game = models.ForeignKey(to='tgbot.Game', on_delete=models.PROTECT, verbose_name='Основная игра', null=True)
     steam = models.CharField(max_length=150, verbose_name='Имя пользователя в Steam', null=True)

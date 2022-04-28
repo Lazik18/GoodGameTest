@@ -18,14 +18,18 @@ def command_messages(update: Update, context: CallbackContext):
         chat_id = update.message.chat_id
     except AttributeError:
         chat_id = update.callback_query.message.chat_id
-
     user, _ = Profile.objects.get_or_create(telegram_id=chat_id)
     if user.is_register:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text='Изменить профиль', callback_data='EditProfile')],
-                             [InlineKeyboardButton(text='Искать людей', callback_data='Search')]])
+                             [InlineKeyboardButton(text='Искать людей', callback_data='SearchStart')]])
         bot.sendMessage(chat_id=user.telegram_id, text=' Меню Тиндер', reply_markup=keyboard)
     else:
+        if update.message.from_user.username is None:
+            bot.sendMessage(chat_id=user.telegram_id, text='Пожалуйста, укажите username в вашем профиле')
+            return
+        user.username = update.message.from_user.username
+        user.save()
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text='Создать профиль', callback_data='CreateProfile')]])
         bot.sendMessage(chat_id=user.telegram_id, text='Сперва Вам нужно создать профиль', reply_markup=keyboard)
@@ -73,9 +77,9 @@ def create_profile(telegram_id, game=Game.objects.first()):
         user.flag = f'{game.pk}'
         user.save()
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text='<', callback_data='GameLeft'),
-                              InlineKeyboardButton(text='Выбрать', callback_data='GameSelect'),
-                              InlineKeyboardButton(text='>', callback_data='GameRight')]])
+            inline_keyboard=[[InlineKeyboardButton(text='<', callback_data='CreateGameLeft'),
+                              InlineKeyboardButton(text='Выбрать', callback_data='CreateGameSelect'),
+                              InlineKeyboardButton(text='>', callback_data='CreateGameRight')]])
         bot.sendMessage(chat_id=telegram_id, text=f'Выберите игру:\n {game.title}', reply_markup=keyboard)
     elif user.steam is None:
         bot.sendMessage(chat_id=telegram_id, text='Укажите ваш никнейм в Steam:')
@@ -114,17 +118,51 @@ def edit_profile(telegram_id):
                                               f'Никнейм в Steam: {user.steam}', reply_markup=keyboard)
 
 
-def search(telegram_id, game=Game.objects.first()):
+def search_select_game(telegram_id, game=Game.objects.first()):
     telegram_token = settings.TOKEN
     bot = telepot.Bot(telegram_token)
     user = Profile.objects.get(telegram_id=telegram_id)
     user.flag = f'{game.pk}'
     user.save()
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text='<', callback_data='GameLeftSearch'),
-                          InlineKeyboardButton(text='Выбрать', callback_data='GameSelectSearch'),
-                          InlineKeyboardButton(text='>', callback_data='GameRightSearch')]])
-    bot.sendMessage(chat_id=telegram_id, text=f'Выберите игру:\n {game.title}', reply_markup=keyboard)
+        inline_keyboard=[[InlineKeyboardButton(text='<', callback_data='SearchGameLeft'),
+                          InlineKeyboardButton(text='Выбрать', callback_data='SearchGameSelect'),
+                          InlineKeyboardButton(text='>', callback_data='SearchGameRight')]])
+    bot.sendMessage(chat_id=telegram_id, text=f'Выберите игру для поиска людей:\n {game.title}', reply_markup=keyboard)
+
+
+def search(telegram_id, next_user=None):
+    telegram_token = settings.TOKEN
+    bot = telepot.Bot(telegram_token)
+
+    if next_user is None:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text='В меню', callback_data='BackMenu'),
+                              InlineKeyboardButton(text='Выбрать другую игру', callback_data='SearchStart')]])
+        bot.sendMessage(chat_id=telegram_id, text='Пользователей не найдено', reply_markup=keyboard)
+    else:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text='Отправить мои данные', callback_data=f'SearchSend '
+                                                                                              f'{next_user.telegram_id}'),
+                              InlineKeyboardButton(text='Следующий', callback_data=f'SearchNext {next_user.pk}')],
+                             [InlineKeyboardButton(text='В меню', callback_data='BackMenu')]])
+        bot.sendMessage(chat_id=telegram_id, text=f'{next_user.name}\n'
+                                                  f'Основная игра: {next_user.game}\n'
+                                                  f'О себе:\n {next_user.about}\n'
+                                                  f'Мой Steam: {next_user.steam}\n'
+                                                  f'Зарегистрирован с {next_user.register_date}',
+                        reply_markup=keyboard)
+
+
+def send_profile(telegram_id, for_user):
+    telegram_token = settings.TOKEN
+    bot = telepot.Bot(telegram_token)
+    user = Profile.objects.get(telegram_id=telegram_id)
+
+    bot.sendMessage(chat_id=for_user, text=f'Пользователю @{user.username} понравилась ваша карточка по игре.\n'
+                                           f'Напишите ему!')
+
+
 
 
 def case_messages(update: Update, context: CallbackContext):
@@ -134,21 +172,43 @@ def case_messages(update: Update, context: CallbackContext):
     telegram_token = settings.TOKEN
     bot = telepot.Bot(telegram_token)
 
-    if 'Search' in query.data:
+    if 'SearchStart' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
             pass
         finally:
-            search(user.telegram_id)
-    elif 'EditProfile' in query.data:
+            search_select_game(user.telegram_id)
+    elif 'SearchNext' in query.data:
+        try:
+            bot.deleteMessage(current_message)
+        except telepot.exception.TelegramError:
+            pass
+        finally:
+            game = Game.objects.get(pk=int(user.flag))
+            data = query.data.split()
+            next_user = Profile.objects.filter(game__id=game.id, pk__gt=int(data[1])).exclude(pk=user.pk).first()
+            if next_user is None:
+                next_user = Profile.objects.filter(game__id=game.id, pk__gt=int(data[1])).exclude(pk=user.pk).first()
+            search(query.message.chat_id, next_user=next_user)
+    elif 'SearchSend' in query.data:
+        # try:
+        #     bot.editMessageText(text='Успешно', msg_identifier=current_message)
+        # except telepot.exception.TelegramError:
+        #     pass
+        # finally:
+        data = query.data.split()
+        send_profile(query.message.chat_id, int(data[1]))
+        bot.sendMessage(chat_id=query.message.chat_id, text='Ваш запрос отправлен')
+        return
+    elif 'EditProfile' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
             pass
         finally:
             edit_profile(user.telegram_id)
-    elif 'EditName' in query.data:
+    elif 'EditName' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -157,7 +217,7 @@ def case_messages(update: Update, context: CallbackContext):
             user.name = None
             user.save()
             create_profile(user.telegram_id)
-    elif 'EditAbout' in query.data:
+    elif 'EditAbout' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -166,7 +226,7 @@ def case_messages(update: Update, context: CallbackContext):
             user.about = None
             user.save()
             create_profile(user.telegram_id)
-    elif 'EditGame' in query.data:
+    elif 'EditGame' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -175,7 +235,7 @@ def case_messages(update: Update, context: CallbackContext):
             user.game = None
             user.save()
             create_profile(user.telegram_id)
-    elif 'EditSteam' in query.data:
+    elif 'EditSteam' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -184,21 +244,21 @@ def case_messages(update: Update, context: CallbackContext):
             user.steam = None
             user.save()
             create_profile(user.telegram_id)
-    elif 'BackMenu' in query.data:
+    elif 'BackMenu' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
             pass
         finally:
             command_messages(update, context)
-    elif 'CreateProfile' in query.data:
+    elif 'CreateProfile' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
             pass
         finally:
             create_profile(query.message.chat_id)
-    elif 'GameLeft' in query.data:
+    elif 'CreateGameLeft' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -208,7 +268,7 @@ def case_messages(update: Update, context: CallbackContext):
             if game is None:
                 game = Game.objects.last()
             create_profile(query.message.chat_id, game=game)
-    elif 'GameLeftSearch' in query.data:
+    elif 'SearchGameLeft' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -217,8 +277,8 @@ def case_messages(update: Update, context: CallbackContext):
             game = Game.objects.filter(pk__lt=int(user.flag)).last()
             if game is None:
                 game = Game.objects.last()
-            search(query.message.chat_id, game=game)
-    elif 'GameSelect' in query.data:
+            search_select_game(query.message.chat_id, game=game)
+    elif 'CreateGameSelect' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -227,16 +287,18 @@ def case_messages(update: Update, context: CallbackContext):
             user.game = Game.objects.get(pk=int(user.flag))
             user.save()
             create_profile(query.message.chat_id)
-    elif 'GameSelectSearch' in query.data:
+    elif 'SearchGameSelect' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
             pass
         finally:
-            user.game = Game.objects.get(pk=int(user.flag))
-            user.save()
-            search(query.message.chat_id)
-    elif 'GameRight' in query.data:
+            game = Game.objects.get(pk=int(user.flag))
+            next_user = Profile.objects.filter(game__id=game.id, pk__gt=user.pk).first()
+            if next_user is None:
+                next_user = Profile.objects.filter(game__id=game.id, pk__lt=user.pk).first()
+            search(query.message.chat_id, next_user=next_user)
+    elif 'CreateGameRight' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -246,7 +308,7 @@ def case_messages(update: Update, context: CallbackContext):
             if game is None:
                 game = Game.objects.first()
             create_profile(query.message.chat_id, game=game)
-    elif 'GameRightSearch' in query.data:
+    elif 'SearchGameRight' == query.data:
         try:
             bot.deleteMessage(current_message)
         except telepot.exception.TelegramError:
@@ -255,7 +317,7 @@ def case_messages(update: Update, context: CallbackContext):
             game = Game.objects.filter(pk__gt=int(user.flag)).first()
             if game is None:
                 game = Game.objects.first()
-            search(query.message.chat_id, game=game)
+            search_select_game(query.message.chat_id, game=game)
 
 
 class Command(BaseCommand):
