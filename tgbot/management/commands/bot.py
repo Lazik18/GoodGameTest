@@ -25,18 +25,18 @@ def command_messages(update: Update, context: CallbackContext):
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text='⚙️ Изменить профиль ⚙️', callback_data='EditProfile')],
                              [InlineKeyboardButton(text='🔎 Искать людей 🔍', callback_data='SearchStart')]])
-        bot.sendMessage(chat_id=user.telegram_id, text='🎲 Меню Тиндер 🎮\n Здесь вы сможете найти людей для совместных '
-                                                       'игр', reply_markup=keyboard)
+        bot.sendPhoto(chat_id=user.telegram_id, photo='https://cdn.dribbble.com/users/869811/screenshots/4043532/tinder_dribbble.png',
+                      caption='🎲 Меню Тиндер 🎮\n Здесь вы сможете найти людей для совместных игр', reply_markup=keyboard)
     else:
         if update.message.from_user.username is None:
             bot.sendMessage(chat_id=user.telegram_id, text='Пожалуйста, укажите username в вашем профиле телеграм '
-                                                           'и попробуйте снова /start')
+                                                           'и попробуйте снова /start 😞')
             return
         user.username = update.message.from_user.username
         user.save()
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text='Создать профиль', callback_data='CreateProfile')]])
-        bot.sendMessage(chat_id=user.telegram_id, text='Сперва Вам нужно создать профиль', reply_markup=keyboard)
+            inline_keyboard=[[InlineKeyboardButton(text='Создать профиль ➡️', callback_data='CreateProfile')]])
+        bot.sendMessage(chat_id=user.telegram_id, text='Сперва Вам нужно создать профиль ☝️', reply_markup=keyboard)
 
 
 def messages(update: Update, context: CallbackContext):
@@ -82,9 +82,9 @@ def create_profile(telegram_id, game=Game.objects.first()):
         user.flag = f'{game.pk}'
         user.save()
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text='<', callback_data='CreateGameLeft'),
+            inline_keyboard=[[InlineKeyboardButton(text='⬅️', callback_data='CreateGameLeft'),
                               InlineKeyboardButton(text='Выбрать', callback_data='CreateGameSelect'),
-                              InlineKeyboardButton(text='>', callback_data='CreateGameRight')]])
+                              InlineKeyboardButton(text='➡️', callback_data='CreateGameRight')]])
         bot.sendMessage(chat_id=telegram_id, text=f'Выберите игру:\n {game.title}', reply_markup=keyboard)
     elif user.steam is None:
         bot.sendMessage(chat_id=telegram_id, text='Укажите ваш никнейм в Steam:')
@@ -93,13 +93,13 @@ def create_profile(telegram_id, game=Game.objects.first()):
     elif user.is_register:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text='Редактировать профиль', callback_data='EditProfile'),
-                              InlineKeyboardButton(text='В меню', callback_data='BackMenu')]])
-        bot.sendMessage(chat_id=telegram_id, text='Изменения сохранены', reply_markup=keyboard)
+                              InlineKeyboardButton(text='В меню 🏢', callback_data='BackMenu')]])
+        bot.sendMessage(chat_id=telegram_id, text='Изменения сохранены ☑️️', reply_markup=keyboard)
     else:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text='Редактировать профиль', callback_data='EditProfile'),
-                              InlineKeyboardButton(text='В меню', callback_data='BackMenu')]])
-        bot.sendMessage(chat_id=telegram_id, text='Вы успешно зарегистрированы', reply_markup=keyboard)
+                              InlineKeyboardButton(text='В меню 🏢', callback_data='BackMenu')]])
+        bot.sendMessage(chat_id=telegram_id, text='Вы успешно зарегистрированы ☑️', reply_markup=keyboard)
         user.is_register = True
         user.vision = True
         user.save()
@@ -115,12 +115,12 @@ def edit_profile(telegram_id):
     else:
         str_vision = 'скрыт'
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text='Имя', callback_data='EditName')],
-                         [InlineKeyboardButton(text='О себе', callback_data='EditAbout')],
-                         [InlineKeyboardButton(text='Основную игру', callback_data='EditGame')],
-                         [InlineKeyboardButton(text='Никнейм Steam', callback_data='EditSteam')],
-                         [InlineKeyboardButton(text='Переключить видимость', callback_data='EditVision')],
-                         [InlineKeyboardButton(text='Вернуться в меню', callback_data='BackMenu')]])
+        inline_keyboard=[[InlineKeyboardButton(text='⚙️ Имя ⚙️', callback_data='EditName')],
+                         [InlineKeyboardButton(text='⚙️ О себе ⚙️', callback_data='EditAbout')],
+                         [InlineKeyboardButton(text='⚙️ Основную игру ⚙️', callback_data='EditGame')],
+                         [InlineKeyboardButton(text='⚙️ Никнейм Steam ⚙️', callback_data='EditSteam')],
+                         [InlineKeyboardButton(text='⚙️ Переключить видимость ⚙️', callback_data='EditVision')],
+                         [InlineKeyboardButton(text='🏢 Вернуться в меню 🏢', callback_data='BackMenu')]])
     bot.sendMessage(chat_id=telegram_id, text=f'Что бы вы хотели изменить?\n'
                                               f'Ваш профиль {str_vision}\n'
                                               f'Имя: {user.name}\n'
