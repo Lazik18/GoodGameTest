@@ -14,16 +14,19 @@ from telegram.ext import Updater, MessageHandler, CommandHandler, CallbackQueryH
 def command_messages(update: Update, context: CallbackContext):
     telegram_token = settings.TOKEN
     bot = telepot.Bot(telegram_token)
+
     try:
         chat_id = update.message.chat_id
     except AttributeError:
         chat_id = update.callback_query.message.chat_id
     user, _ = Profile.objects.get_or_create(telegram_id=chat_id)
+
     if user.is_register:
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text='Изменить профиль', callback_data='EditProfile')],
-                             [InlineKeyboardButton(text='Искать людей', callback_data='SearchStart')]])
-        bot.sendMessage(chat_id=user.telegram_id, text=' Меню Тиндер', reply_markup=keyboard)
+            inline_keyboard=[[InlineKeyboardButton(text='⚙️ Изменить профиль ⚙️', callback_data='EditProfile')],
+                             [InlineKeyboardButton(text='🔎 Искать людей 🔍', callback_data='SearchStart')]])
+        bot.sendMessage(chat_id=user.telegram_id, text='🎲 Меню Тиндер 🎮\n Здесь вы сможете найти людей для совместных '
+                                                       'игр', reply_markup=keyboard)
     else:
         if update.message.from_user.username is None:
             bot.sendMessage(chat_id=user.telegram_id, text='Пожалуйста, укажите username в вашем профиле телеграм '
@@ -40,6 +43,7 @@ def messages(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     telegram_token = settings.TOKEN
     bot = telepot.Bot(telegram_token)
+
     try:
         user = Profile.objects.get(telegram_id=chat_id)
         if user.flag == 'name':
@@ -105,11 +109,11 @@ def edit_profile(telegram_id):
     telegram_token = settings.TOKEN
     bot = telepot.Bot(telegram_token)
     user = Profile.objects.get(telegram_id=telegram_id)
+
     if user.vision:
         str_vision = 'виден'
     else:
         str_vision = 'скрыт'
-
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text='Имя', callback_data='EditName')],
                          [InlineKeyboardButton(text='О себе', callback_data='EditAbout')],
@@ -132,11 +136,12 @@ def search_select_game(telegram_id, game=Game.objects.first()):
     user = Profile.objects.get(telegram_id=telegram_id)
     user.flag = f'{game.pk}'
     user.save()
+
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text='<', callback_data='SearchGameLeft'),
+        inline_keyboard=[[InlineKeyboardButton(text='⬅️', callback_data='SearchGameLeft'),
                           InlineKeyboardButton(text='Выбрать', callback_data='SearchGameSelect'),
-                          InlineKeyboardButton(text='>', callback_data='SearchGameRight')]])
-    bot.sendMessage(chat_id=telegram_id, text=f'Выберите игру для поиска людей:\n {game.title}', reply_markup=keyboard)
+                          InlineKeyboardButton(text='➡️', callback_data='SearchGameRight')]])
+    bot.sendMessage(chat_id=telegram_id, text=f'🔍Выберите игру для поиска людей:\n {game.title}', reply_markup=keyboard)
 
 
 def search(telegram_id, next_user=None):
@@ -145,15 +150,15 @@ def search(telegram_id, next_user=None):
 
     if next_user is None:
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text='В меню', callback_data='BackMenu'),
+            inline_keyboard=[[InlineKeyboardButton(text='В меню 🏢', callback_data='BackMenu'),
                               InlineKeyboardButton(text='Выбрать другую игру', callback_data='SearchStart')]])
-        bot.sendMessage(chat_id=telegram_id, text='Пользователей не найдено', reply_markup=keyboard)
+        bot.sendMessage(chat_id=telegram_id, text='Пользователей не найдено 😞', reply_markup=keyboard)
     else:
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text='Отправить мои данные', callback_data=f'SearchSend '
+            inline_keyboard=[[InlineKeyboardButton(text='Отправить мои данные ✉️', callback_data=f'SearchSend '
                                                                                               f'{next_user.telegram_id}'),
-                              InlineKeyboardButton(text='Следующий', callback_data=f'SearchNext {next_user.pk}')],
-                             [InlineKeyboardButton(text='В меню', callback_data='BackMenu')]])
+                              InlineKeyboardButton(text='Следующий ➡️', callback_data=f'SearchNext {next_user.pk}')],
+                             [InlineKeyboardButton(text='В меню 🏢', callback_data='BackMenu')]])
         bot.sendMessage(chat_id=telegram_id, text=f'{next_user.name}\n'
                                                   f'Основная игра: {next_user.game}\n'
                                                   f'О себе:\n {next_user.about}\n'
@@ -167,7 +172,7 @@ def send_profile(telegram_id, for_user):
     bot = telepot.Bot(telegram_token)
     user = Profile.objects.get(telegram_id=telegram_id)
 
-    bot.sendMessage(chat_id=for_user, text=f'Пользователю @{user.username} понравилась ваша карточка по игре.\n'
+    bot.sendMessage(chat_id=for_user, text=f'Пользователю @{user.username} понравилась ваша карточка по игре.🤔\n'
                                            f'Вот его анкета:\n'
                                            f'Имя: {user.name}\n'
                                            f'Основная игра: {user.game}\n'
@@ -207,7 +212,7 @@ def case_messages(update: Update, context: CallbackContext):
     elif 'SearchSend' in query.data:
         data = query.data.split()
         send_profile(query.message.chat_id, int(data[1]))
-        bot.sendMessage(chat_id=query.message.chat_id, text='Ваш запрос отправлен')
+        bot.sendMessage(chat_id=query.message.chat_id, text='Ваш запрос отправлен ✅')
         return
     elif 'EditProfile' == query.data:
         try:
